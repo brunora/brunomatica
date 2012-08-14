@@ -1,0 +1,342 @@
+library(XML)
+require("tseries")
+options(stringsAsFactors=FALSE)
+
+getIndustries <- function(){
+  
+  #Tabulas as ações das Bolsas
+  NASDAQ <- read.csv("http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NASDAQ&render=download", as.is=c(1:10),na.strings=c("n/a","NA"))
+  NYSE <- read.csv("http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NYSE&render=download", as.is=c(1:10),na.strings=c("n/a","NA"))
+  AMEX <- read.csv("http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=AMEX&render=download", as.is=c(1:10),na.strings=c("n/a","NA"))
+  #Junta todas as bolsas na mesma tabela
+  Stocks <- rbind(AMEX,NASDAQ,NYSE)
+  
+  #Cria dicionário de Indústrias
+  industries <-unique(Stocks[,8])
+  industries <- industries[order(industries)]
+  return(industries)
+}
+
+getKS <- function(stock){
+  #Abre o site
+  theurl <- paste("http://finance.yahoo.com/q/ks?s=", stock,"+Key+Statistics", sep="")
+  tables <- readHTMLTable(theurl)
+  
+  # EV
+  table <- as.data.frame(tables[[9]])
+  EV <- convertBtoM(as.character(table$V2)[2])
+  
+  #DE, Debt, Cash
+  table <- as.data.frame(tables[[20]])
+  DE <- as.numeric(as.character(table$V2[5]))
+  Debt <- convertBtoM(as.character(table$V2)[4])
+  Cash <- convertBtoM(as.character(table$V2)[2])
+  
+  #Beta
+  table <- as.data.frame(tables[[25]])
+  temp <- as.character(table$V2)[3]
+  Beta <- as.numeric(substr(temp,1,nchar(temp)-1))
+  if (substr(temp,nchar(temp),nchar(temp))=='B') Beta <- (Beta*1000)
+  
+  #DLPL e Equity
+  DLPL <- NA
+  try(DLPL <- (Debt-Cash)/(Debt/(DE/100)),silent=TRUE)
+  if (!is.numeric(DLPL)) DLPL <- NA
+  Equity <- NA
+  try(Equity <- Debt/(DE/100),silent=TRUE)
+  if (!is.numeric(Equity)) Equity <- NA
+  dif <- NA
+  try(dif <- EV-Debt-Equity, silent=TRUE)
+  #Resultados
+  
+  result <- list(EV=EV, DE=DE, Debt=Debt, Cash=Cash, Beta=Beta, DLPL=DLPL, Equity=Equity, dif=dif)
+  
+  return(result)
+}
+
+convertBtoM <- function(value) {
+  result <- value
+  if (substr(value,nchar(value),nchar(value))=='B'){
+    result <- (as.numeric(substr(value,1,nchar(value)-1))*1000)
+  }
+  else if (substr(value,nchar(value),nchar(value))=='M'){
+    result <- (as.numeric(substr(value,1,nchar(value)-1)))
+  }
+  else if (substr(value,nchar(value),nchar(value))=='k'){
+    result <- (as.numeric(substr(value,1,nchar(value)-1))/1000)
+  }
+  return(as.numeric(result))
+}
+
+getSymbols <- function(industry, minIPOyear, exclude){
+  if(missing(minIPOyear)) {
+    y <- 2007 
+  } else {
+    y <- minIPOyear }  
+  
+  if(missing(exclude)) {
+    exclude <- "" 
+  }
+  
+  #Tabulas as ações das Bolsas
+  NASDAQ <- read.csv("http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NASDAQ&render=download", as.is=c(1:10),na.strings=c("n/a","NA"))
+  NYSE <- read.csv("http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NYSE&render=download", as.is=c(1:10),na.strings=c("n/a","NA"))
+  AMEX <- read.csv("http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=AMEX&render=download", as.is=c(1:10),na.strings=c("n/a","NA"))
+  #Junta todas as bolsas na mesma tabela
+  Stocks <- rbind(AMEX,NASDAQ,NYSE)
+  
+  #Cria dicionário de Indústrias
+  industries <-unique(Stocks[,8])
+  industries <- industries[order(industries)]
+  
+  #Separa as ações que são daquela industria e com IPO antes de 2007
+  symbols <- as.data.frame(subset(Stocks, Industry==industry & (is.na(IPOyear)|IPOyear < y)))
+  symbols <- as.data.frame(symbols[,1])
+  symbols <- subset(symbols, !(symbols[,1] %in% exclude))
+  
+  return(symbols)
+}
+
+# getSNP <- function(ndays){
+#   if(missing(ndays)){
+#     ndays <-1826
+#   }
+#   SNP <- get.hist.quote(instrument="^gspc", start = Sys.Date() - 1825, quote="Close")
+#   SNP <- ((SNP/lag(SNP,-1))-1)
+#   return(SNP)
+# }
+
+getQuote <- function(stock, ndays){
+  quote <-get.hist.quote(stock, start = Sys.Date() - ndays, quote="Close")
+  quote <- ((quote/lag(quote,-1))-1)
+  return(quote)
+}
+
+getBeta <- function(stock, years){
+  SNP <-get.hist.quote("^GSPC", start = Sys.Date() - (years*365), quote="Close", quiet=TRUE)
+  SNP <- ((SNP/lag(SNP,-1))-1)
+  temp <-get.hist.quote(stock, start = Sys.Date() - (years*365), quote="Close", quiet=TRUE)
+  temp <- (temp/lag(temp,-1)-1)
+  try(beta <- (cov(SNP, temp)/var(SNP)),silent=TRUE)
+  if (!is.numeric(beta)) beta <-NA
+  return(beta)
+}
+
+getBS <- function(stock, qtr=FALSE){
+  p <- ifelse(qtr, "Qtr", "Ann")
+  theurl <- paste("http://investing.money.msn.com/investments/stock-balance-sheet/?symbol=",stock,"&stmtView=",p, sep="",col="")
+  tables <- readHTMLTable(theurl)
+  # table <- as.data.frame(lapply(tables[[2]], as.character),stringsAsFactors=F)
+  table <- tables[[2]]
+  colnames(table) <- table[1,]
+  colnames(table)[1] <- "Type"
+  return(table)
+}
+
+getIS <- function(stock, qtr=FALSE){
+  p <- ifelse(qtr, "Qtr", "Ann")
+  theurl <- paste("http://investing.money.msn.com/investments/stock-income-statement/?symbol=",stock,"&stmtView=",p, sep="",col="")
+  tables <- readHTMLTable(theurl)
+  # table <- as.data.frame(lapply(tables[[2]], as.character),stringsAsFactors=F)
+  table <- tables[[2]]
+  colnames(table) <- table[1,]
+  colnames(table)[1] <- "Type"
+  return(table)
+}
+
+getCF <- function(stock, qtr=FALSE){
+  p <- ifelse(qtr, "Qtr", "Ann")
+  theurl <- paste("http://investing.money.msn.com/investments/stock-cash-flow/?symbol=",stock,"&stmtView=",p, sep="",col="")
+  tables <- readHTMLTable(theurl)
+  # table <- as.data.frame(lapply(tables[[2]], as.character),stringsAsFactors=F)
+  table <- tables[[2]]
+  colnames(table) <- table[1,]
+  colnames(table)[1] <- "Type"
+  return(table)
+}
+
+getCCC <- function(stock){
+  
+  bs <- getBS(stock)
+  is <- getIS(stock)
+  
+  #get vectors
+  inventory <- subset(bs, Type=="Total Inventory")
+  cogs <- subset(is, Type=="Cost of Revenue, Total")
+  
+  accreceivable <- subset(bs, Type=="Total Receivables, Net")
+  sales <- subset(is, Type=="Total Revenue")
+  
+  accpayable <- subset(bs, Type=="Accounts Payable")
+  
+  #calcula medias
+  
+  inventory <- (as.numeric(sub(",", "", inventory[,2]))+as.numeric(sub(",", "", inventory[,3])))/2
+  accreceivable <- (as.numeric(sub(",", "", accreceivable[,2]))+as.numeric(sub(",", "", accreceivable[,3])))/2
+  accpayable <- (as.numeric(sub(",", "", accpayable[,2]))+as.numeric(sub(",", "", accpayable[,3])))/2
+  
+  # desvetorizar
+  cogs <- as.numeric(sub(",", "", cogs[,2]))
+  sales <- as.numeric(sub(",", "", sales[,2]))
+  
+  
+  ICP <- inventory/(cogs/365)
+  RCP <- accreceivable/(sales/365)
+  PCP <- accpayable/(cogs/365)                   
+  
+  CCC <- ICP + RCP - PCP
+  
+  output <- list(ICP=ICP, RCP=RCP, PCP=PCP, CCC=CCC)
+  
+  return(output)
+  
+}
+
+getDLPL <- function(stock){
+  bs <- getBS(stock)
+  
+  #get vectors
+  LTD <- as.numeric(sub(",", "",subset(bs, Type == "Total Long Term Debt")[2]))
+  STD <- as.numeric(sub(",", "",subset(bs, Type == "Current Port. of LT Debt/Capital Leases")[2]))
+  Cash <- as.numeric(sub(",", "",subset(bs, Type == "Cash and Short Term Investments")[2]))
+  Equity <- as.numeric(sub(",", "",subset(bs, Type == "Total Equity")[2]))
+  
+  DLPL <-((LTD+STD)-Cash)/Equity
+  return(DLPL)
+}
+
+getCAPEX <- function(stock){
+  cf <- getCF(stock)
+  CAPEX <- subset(cf, Type=="Capital Expenditures")
+  colnames(CAPEX) <- colnames(cf)
+  return(CAPEX)
+}
+
+getEquity <- function(stock){
+  bs <- getBS(stock)
+  
+  Equity <- subset(bs, Type=="Total Equity")
+  colnames(Equity) <- colnames(bs)
+  return(Equity)
+}
+
+
+#### ARRUMAR!!!!
+getDebt <- function(stock){
+  bs <- getBS(stock)
+  
+  #get vectors
+  LTD <- as.numeric(sub(",", "",subset(bs, Type="Total Long Term Debt")[2]))
+  STD <- as.numeric(sub(",", "",subset(bs, Type=="Current Port. of LT Debt/Capital Leases")[2]))
+  Cash <- as.numeric(sub(",", "",subset(bs, Type=="Cash and Short Term Investments")[2]))
+  Equity <- as.numeric(sub(",", "",subset(bs, Type=="Total Equity")[2]))
+  
+  return(LTD+STD)
+}
+
+
+getCash <- function(stock){
+  bs <- getBS(stock)
+  
+  #get vectors
+  Cash <- subset(bs, Type=="Cash and Short Term Investments")
+  colnames(Cash) <- colnames(bs)
+  
+  return(Cash)
+}
+getPPE <- function(stock){
+  bs <- getBS(stock)
+  
+  #get vectors
+  PPE <- subset(bs, Type=="Property/Plant/Equipment, Total - Net")
+  colnames(PPE) <- colnames(bs)
+  
+  return(PPE)
+}
+
+getDepreciation <- function(stock){
+  bs <- getCF(stock)
+  
+  #get vectors
+  Depreciation <- subset(bs, Type=="Depreciation/Depletion")
+  colnames(Depreciation) <- colnames(bs)
+  return(Depreciation)
+}
+
+getRevenue <- function(stock){
+  is <- getIS(stock)
+  
+  #get vectors
+  Revenue <- subset(is, Type=="Total Revenue")
+  
+  colnames(Revenue) <- colnames(is)
+  
+  return(Revenue)
+}
+
+tableCAPEX <- function(symbols){
+  output <- data.frame()
+
+  for (i in seq(1,nrow(symbols))){
+    temp <- getCAPEX(symbols[i,1])
+    temp <- as.data.frame(temp)
+    temp[,7] <- colnames(temp)[2]
+    colnames(temp) <- 1:7
+    output <- rbind(output, temp)
+    symbols[i,2] <- "OK"
+  }
+  output[,1] <- symbols[,1]
+  colnames(output) <- c("Stock", "Year 0", "Year -1", "Year -2", "Year -3", "Year -4", "Ref. Year")
+  return(output)
+}
+
+tableRevenue <- function(symbols){
+  output <- data.frame()
+  
+  for (i in seq(1,nrow(symbols))){
+    temp <- getRevenue(symbols[i,1])
+    temp <- as.data.frame(temp)
+    temp[,7] <- colnames(temp)[2]
+    colnames(temp) <- 1:7
+    output <- rbind(output, temp)
+    symbols[i,2] <- "OK"
+  }
+  colnames(output) <- c("Stock", "Year 0", "Year -1", "Year -2", "Year -3", "Year -4","Ref. Year")
+  output[,1] <- symbols[,1]
+  
+  return(output)
+}
+
+tableDepreciation <- function(symbols){
+  output <- data.frame()
+  
+  for (i in seq(1,nrow(symbols))){
+    temp <- getDepreciation(symbols[i,1])
+    temp <- as.data.frame(temp)
+    temp[,7] <- colnames(temp)[2]
+    colnames(temp) <- 1:7
+    output <- rbind(output, temp)
+    symbols[i,2] <- "OK"
+  }
+  colnames(output) <- c("Stock", "Year 0", "Year -1", "Year -2", "Year -3", "Year -4","Ref. Year")
+  output[,1] <- symbols[,1]
+  
+  return(output)
+}
+
+tablePPE <- function(symbols){
+  output <- data.frame()
+  
+  for (i in seq(1,nrow(symbols))){
+    temp <- getPPE(symbols[i,1])
+    temp <- as.data.frame(temp)
+    temp[,7] <- colnames(temp)[2]
+    colnames(temp) <- 1:7
+    output <- rbind(output, temp)
+    symbols[i,2] <- "OK"
+  }
+  colnames(output) <- c("Stock", "Year 0", "Year -1", "Year -2", "Year -3", "Year -4","Ref. Year")
+  output[,1] <- symbols[,1]
+  
+  return(output)
+}
