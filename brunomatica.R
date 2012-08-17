@@ -48,13 +48,14 @@ getKS <- function(stock){
   dif <- NA
   try(dif <- EV-Debt-Equity, silent=TRUE)
   
-#EBITDA
+  #MARGEM EBITDA
   table <- as.data.frame(tables[[18]])
   EBITDA <- convertBtoM(as.character(table$V2)[6])  
-  
+  ROB <- convertBtoM(as.character(table$V2)[2])
+  MRGEBITDA <- EBITDA/ROB
   #Resultados
   
-  result <- list(EV=EV, DE=DE, Debt=Debt, Cash=Cash, Beta=Beta, DLPL=DLPL, Equity=Equity, dif=dif, EBITDA=EBITDA)
+  result <- list(EV=EV, DE=DE, Debt=Debt, Cash=Cash, Beta=Beta, DLPL=DLPL, Equity=Equity, dif=dif, MRGEBITDA=MRGEBITDA)
   
   return(result)
 }
