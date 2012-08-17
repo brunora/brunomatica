@@ -346,3 +346,21 @@ tablePPE <- function(symbols){
   
   return(output)
 }
+
+#------------------------------------------------------------------#
+
+getBSBR <- function(stock){
+  #Abre o site
+  theurl <- paste("http://www.bmfbovespa.com.br/pt-br/mercados/acoes/empresas/ExecutaAcaoConsultaInfoEmp.asp?CodCVM=2453&ViewDoc=0")
+  tables <- readHTMLTable(theurl)
+  #2453 é o código da CEMIG
+  
+  # BS
+  BS <- as.data.frame(tables[[10]])
+  
+  #Resultados
+  
+  result <- list(BS=BS)
+  
+  return(result)
+}
