@@ -47,9 +47,14 @@ getKS <- function(stock){
   if (!is.numeric(Equity)) Equity <- NA
   dif <- NA
   try(dif <- EV-Debt-Equity, silent=TRUE)
+  
+#EBITDA
+  table <- as.data.frame(tables[[18]])
+  EBITDA <- convertBtoM(as.character(table$V2)[6])  
+  
   #Resultados
   
-  result <- list(EV=EV, DE=DE, Debt=Debt, Cash=Cash, Beta=Beta, DLPL=DLPL, Equity=Equity, dif=dif)
+  result <- list(EV=EV, DE=DE, Debt=Debt, Cash=Cash, Beta=Beta, DLPL=DLPL, Equity=Equity, dif=dif, EBITDA=EBITDA)
   
   return(result)
 }
