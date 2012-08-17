@@ -364,3 +364,18 @@ getBSBR <- function(stock){
   
   return(result)
 }
+
+getISBR <- function(stock){
+  #Abre o site com DRE AMBEV
+  theurl <- paste("http://www.rad.cvm.gov.br/enetconsulta/frmDemonstracaoFinanceiraITR.aspx?Informacao=2&Demonstracao=4&Periodo=0&Grupo=DFs+Consolidadas&Quadro=Demonstração+do+Resultado")
+  tables <- readHTMLTable(theurl)
+  
+  # IS
+  IS <- as.data.frame(tables[[2]])
+  
+  #Resultados
+  
+  result <- list(IS=IS)
+  
+  return(result)
+}
