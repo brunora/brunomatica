@@ -103,18 +103,8 @@ getSymbols <- function(industry, minIPOyear, exclude){
   return(symbols)
 }
 
-# getSNP <- function(ndays){
-#   if(missing(ndays)){
-#     ndays <-1826
-#   }
-#   SNP <- get.hist.quote(instrument="^gspc", start = Sys.Date() - 1825, quote="Close")
-#   SNP <- ((SNP/lag(SNP,-1))-1)
-#   return(SNP)
-# }
-
 getQuote <- function(stock, ndays){
   quote <-get.hist.quote(stock, start = Sys.Date() - ndays, quote="Close")
-  quote <- ((quote/lag(quote,-1))-1)
   return(quote)
 }
 
@@ -128,7 +118,7 @@ getBeta <- function(stock, years){
   return(beta)
 }
 
-getBS <- function(stock, qtr=FALSE){
+getBS <- function(stock, qtr=FALSE, acc=NA){
   p <- ifelse(qtr, "Qtr", "Ann")
   theurl <- paste("http://investing.money.msn.com/investments/stock-balance-sheet/?symbol=",stock,"&stmtView=",p, sep="",col="")
   tables <- readHTMLTable(theurl)
@@ -136,10 +126,13 @@ getBS <- function(stock, qtr=FALSE){
   table <- tables[[2]]
   colnames(table) <- table[1,]
   colnames(table)[1] <- "Type"
+  if (!is.na(acc)){
+    table <- subset(table, Type==acc)
+  }
   return(table)
 }
 
-getIS <- function(stock, qtr=FALSE){
+getIS <- function(stock, qtr=FALSE, acc=NA){
   p <- ifelse(qtr, "Qtr", "Ann")
   theurl <- paste("http://investing.money.msn.com/investments/stock-income-statement/?symbol=",stock,"&stmtView=",p, sep="",col="")
   tables <- readHTMLTable(theurl)
@@ -147,10 +140,13 @@ getIS <- function(stock, qtr=FALSE){
   table <- tables[[2]]
   colnames(table) <- table[1,]
   colnames(table)[1] <- "Type"
+  if (!is.na(acc)){
+    table <- subset(table, Type==acc)
+  }
   return(table)
 }
 
-getCF <- function(stock, qtr=FALSE){
+getCF <- function(stock, qtr=FALSE, acc=NA){
   p <- ifelse(qtr, "Qtr", "Ann")
   theurl <- paste("http://investing.money.msn.com/investments/stock-cash-flow/?symbol=",stock,"&stmtView=",p, sep="",col="")
   tables <- readHTMLTable(theurl)
@@ -158,6 +154,9 @@ getCF <- function(stock, qtr=FALSE){
   table <- tables[[2]]
   colnames(table) <- table[1,]
   colnames(table)[1] <- "Type"
+  if (!is.na(acc)){
+    table <- subset(table, Type==acc)
+  }
   return(table)
 }
 
@@ -229,7 +228,6 @@ getEquity <- function(stock){
   return(Equity)
 }
 
-
 getDebt <- function(stock){
   bs <- getBS(stock)
   output <- data.frame()
@@ -246,7 +244,6 @@ getDebt <- function(stock){
   return(output)
 }
 
-
 getCash <- function(stock){
   bs <- getBS(stock)
   
@@ -256,6 +253,7 @@ getCash <- function(stock){
   
   return(Cash)
 }
+
 getPPE <- function(stock){
   bs <- getBS(stock)
   
@@ -403,7 +401,6 @@ tableEquity <- function(symbols){
   
   return(output)
 }
-#------------------------------------------------------------------#
 
 getBSBR <- function(stock){
   #Abre o site
