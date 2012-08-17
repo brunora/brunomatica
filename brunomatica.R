@@ -212,9 +212,12 @@ getDLPL <- function(stock){
 }
 
 getCAPEX <- function(stock){
-  cf <- getCF(stock)
-  CAPEX <- subset(cf, Type=="Capital Expenditures")
-  colnames(CAPEX) <- colnames(cf)
+  if (is.null(nrow(stock))){
+    cf <- getCF(stock)
+    CAPEX <- subset(cf, Type=="Capital Expenditures")
+    colnames(CAPEX) <- colnames(cf)
+  }
+  else CAPEX <-tableCAPEX(stock)
   return(CAPEX)
 }
 
@@ -227,17 +230,20 @@ getEquity <- function(stock){
 }
 
 
-#### ARRUMAR!!!!
 getDebt <- function(stock){
   bs <- getBS(stock)
+  output <- data.frame()
   
   #get vectors
-  LTD <- as.numeric(sub(",", "",subset(bs, Type="Total Long Term Debt")[2]))
-  STD <- as.numeric(sub(",", "",subset(bs, Type=="Current Port. of LT Debt/Capital Leases")[2]))
-  Cash <- as.numeric(sub(",", "",subset(bs, Type=="Cash and Short Term Investments")[2]))
-  Equity <- as.numeric(sub(",", "",subset(bs, Type=="Total Equity")[2]))
-  
-  return(LTD+STD)
+  LTD <- as.data.frame(subset(bs, Type=="Total Long Term Debt"))
+  STD1 <- as.data.frame(subset(bs, Type=="Current Port. of LT Debt/Capital Leases"))
+  STD2 <- as.data.frame(subset(bs, Type=="Notes Payable/Short Term Debt"))
+  output[1,1] <- "Total Debt"
+  for(i in seq(2,ncol(LTD))){
+    output[1,i] <- as.numeric(gsub(",", "", (LTD[1,i]))) + as.numeric(gsub(",", "", (STD1[1,i])))+ as.numeric(gsub(",", "", (STD2[1,i])))
+  }                  
+  colnames(output) <- colnames(LTD)                  
+  return(output)
 }
 
 
@@ -347,6 +353,56 @@ tablePPE <- function(symbols){
   return(output)
 }
 
+tableDebt <- function(symbols){
+  output <- data.frame()
+  
+  for (i in seq(1,nrow(symbols))){
+    temp <- getDebt(symbols[i,1])
+    temp <- as.data.frame(temp)
+    temp[,7] <- colnames(temp)[2]
+    colnames(temp) <- 1:7
+    output <- rbind(output, temp)
+    symbols[i,2] <- "OK"
+  }
+  colnames(output) <- c("Stock", "Year 0", "Year -1", "Year -2", "Year -3", "Year -4","Ref. Year")
+  output[,1] <- symbols[,1]
+  
+  return(output)
+}
+
+tableCash <- function(symbols){
+  output <- data.frame()
+  
+  for (i in seq(1,nrow(symbols))){
+    temp <- getCash(symbols[i,1])
+    temp <- as.data.frame(temp)
+    temp[,7] <- colnames(temp)[2]
+    colnames(temp) <- 1:7
+    output <- rbind(output, temp)
+    symbols[i,2] <- "OK"
+  }
+  colnames(output) <- c("Stock", "Year 0", "Year -1", "Year -2", "Year -3", "Year -4","Ref. Year")
+  output[,1] <- symbols[,1]
+  
+  return(output)
+}
+
+tableEquity <- function(symbols){
+  output <- data.frame()
+  
+  for (i in seq(1,nrow(symbols))){
+    temp <- getEquity(symbols[i,1])
+    temp <- as.data.frame(temp)
+    temp[,7] <- colnames(temp)[2]
+    colnames(temp) <- 1:7
+    output <- rbind(output, temp)
+    symbols[i,2] <- "OK"
+  }
+  colnames(output) <- c("Stock", "Year 0", "Year -1", "Year -2", "Year -3", "Year -4","Ref. Year")
+  output[,1] <- symbols[,1]
+  
+  return(output)
+}
 #------------------------------------------------------------------#
 
 getBSBR <- function(stock){
