@@ -1,6 +1,16 @@
 library(XML)
-require("tseries")
+library("tseries")
 options(stringsAsFactors=FALSE)
+
+getStockList <- function(){
+  NASDAQ <- read.csv("http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NASDAQ&render=download", as.is=c(1:10),na.strings=c("n/a","NA"))
+  NYSE <- read.csv("http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=NYSE&render=download", as.is=c(1:10),na.strings=c("n/a","NA"))
+  AMEX <- read.csv("http://www.nasdaq.com/screening/companies-by-industry.aspx?exchange=AMEX&render=download", as.is=c(1:10),na.strings=c("n/a","NA"))
+  #Junta todas as bolsas na mesma tabela
+  Stocks <- rbind(AMEX,NASDAQ,NYSE)
+  
+  return(Stocks)
+}
 
 getIndustries <- function(){
   
@@ -99,6 +109,8 @@ getSymbols <- function(industry, minIPOyear, exclude){
   symbols <- as.data.frame(subset(Stocks, Industry==industry & (is.na(IPOyear)|IPOyear < y)))
   symbols <- as.data.frame(symbols[,1])
   symbols <- subset(symbols, !(symbols[,1] %in% exclude))
+  
+  symbols <- symbols[,1]
   
   return(symbols)
 }
@@ -263,7 +275,6 @@ getPPE <- function(stock){
   
   return(PPE)
 }
-
 getDepreciation <- function(stock){
   bs <- getCF(stock)
   
