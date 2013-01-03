@@ -1,5 +1,6 @@
 library(XML)
-library("tseries")
+library(tseries)
+library(zoo)
 options(stringsAsFactors=FALSE)
 
 getStockList <- function(){
@@ -172,10 +173,10 @@ getCF <- function(stock, qtr=FALSE, acc=NA){
   return(table)
 }
 
-getCCC <- function(stock){
+getCCC <- function(stock, qtr=FALSE){
   
-  bs <- getBS(stock)
-  is <- getIS(stock)
+  bs <- getBS(stock, qtr)
+  is <- getIS(stock, qtr)
   
   #get vectors
   inventory <- subset(bs, Type=="Total Inventory")
@@ -209,8 +210,8 @@ getCCC <- function(stock){
   
 }
 
-getDLPL <- function(stock){
-  bs <- getBS(stock)
+getDLPL <- function(stock, qtr=FALSE){
+  bs <- getBS(stock, qtr)
   
   #get vectors
   LTD <- as.numeric(sub(",", "",subset(bs, Type == "Total Long Term Debt")[2]))
@@ -222,7 +223,7 @@ getDLPL <- function(stock){
   return(DLPL)
 }
 
-getCAPEX <- function(stock){
+getCAPEX <- function(stock, qtr=FALSE){
   if (is.null(nrow(stock))){
     cf <- getCF(stock)
     CAPEX <- subset(cf, Type=="Capital Expenditures")
@@ -232,16 +233,17 @@ getCAPEX <- function(stock){
   return(CAPEX)
 }
 
-getEquity <- function(stock){
-  bs <- getBS(stock)
+getEquity <- function(stock, qtr=FALSE){
+  bs <- getBS(stock, qtr)
   
   Equity <- subset(bs, Type=="Total Equity")
   colnames(Equity) <- colnames(bs)
   return(Equity)
 }
 
-getDebt <- function(stock){
-  bs <- getBS(stock)
+getDebt <- function(stock, qtr=FALSE){
+  
+  bs <- getBS(stock, qtr)
   output <- data.frame()
   
   #get vectors
@@ -256,8 +258,8 @@ getDebt <- function(stock){
   return(output)
 }
 
-getCash <- function(stock){
-  bs <- getBS(stock)
+getCash <- function(stock, qtr=FALSE){
+  bs <- getBS(stock, qtr)
   
   #get vectors
   Cash <- subset(bs, Type=="Cash and Short Term Investments")
@@ -266,8 +268,8 @@ getCash <- function(stock){
   return(Cash)
 }
 
-getPPE <- function(stock){
-  bs <- getBS(stock)
+getPPE <- function(stock, qtr=FALSE){
+  bs <- getBS(stock, qtr)
   
   #get vectors
   PPE <- subset(bs, Type=="Property/Plant/Equipment, Total - Net")
@@ -275,8 +277,9 @@ getPPE <- function(stock){
   
   return(PPE)
 }
-getDepreciation <- function(stock){
-  bs <- getCF(stock)
+
+getDepreciation <- function(stock, qtr=FALSE){
+  bs <- getCF(stock, qtr)
   
   #get vectors
   Depreciation <- subset(bs, Type=="Depreciation/Depletion")
@@ -284,8 +287,8 @@ getDepreciation <- function(stock){
   return(Depreciation)
 }
 
-getRevenue <- function(stock){
-  is <- getIS(stock)
+getRevenue <- function(stock, qtr=FALSE){
+  is <- getIS(stock, qtr)
   
   #get vectors
   Revenue <- subset(is, Type=="Total Revenue")
@@ -397,8 +400,8 @@ tableCash <- function(symbols){
 }
 
 tableEquity <- function(symbols){
-  output <- data.frame()
   
+  output <- data.frame()
   for (i in seq(1,nrow(symbols))){
     temp <- getEquity(symbols[i,1])
     temp <- as.data.frame(temp)
