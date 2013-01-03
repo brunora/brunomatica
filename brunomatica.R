@@ -61,11 +61,11 @@ getKS <- function(stock){
   #MARGEM EBITDA
   table <- as.data.frame(tables[[18]])
   EBITDA <- convertBtoM(as.character(table$V2)[6])  
-  ROB <- convertBtoM(as.character(table$V2)[2])
-  MRGEBITDA <- EBITDA/ROB
-  #Resultados
+  Revenue <- convertBtoM(as.character(table$V2)[2])
+  MRGEBITDA <- EBITDA/Revenue
   
-  result <- list(EV=EV, DE=DE, Debt=Debt, Cash=Cash, Beta=Beta, DLPL=DLPL, Equity=Equity, dif=dif, MRGEBITDA=MRGEBITDA)
+  #Resultados
+  result <- list(EV=EV, DE=DE, Debt=Debt, Cash=Cash, Beta=Beta, DLPL=DLPL, Equity=Equity, dif=dif, MRGEBITDA=MRGEBITDA, EBITDA=EBITDA, Revenue=Revenue)
   
   return(result)
 }
