@@ -1,6 +1,7 @@
 library(XML)
 library(tseries)
 library(zoo)
+
 options(stringsAsFactors=FALSE)
 
 getStockList <- function(){
