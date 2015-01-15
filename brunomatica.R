@@ -125,8 +125,8 @@ getQuote <- function(stock, ndays){
 getBeta <- function(stock, years){
   SNP <-get.hist.quote("^GSPC", start = Sys.Date() - (years*365), quote="Close", quiet=TRUE)
   SNP <- ((SNP/lag(SNP,-1))-1)
-  temp <-get.hist.quote(stock, start = Sys.Date() - (years*365), quote="Close", quiet=TRUE)
-  temp <- (temp/lag(temp,-1)-1)
+  temp <- try(get.hist.quote(stock, start = Sys.Date() - (years*365), quote="Close", quiet=TRUE))
+  if(!inherits(temp, "try-error")) temp <- (temp/lag(temp,-1)-1)
   try(beta <- (cov(SNP, temp)/var(SNP)),silent=TRUE)
   if (!is.numeric(beta)) beta <-NA
   return(beta)
